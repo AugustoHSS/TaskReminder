@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
+import { Client, Collection, GatewayIntentBits, ButtonBuilder, ActionRowBuilder, ButtonStyle, ChannelType } from 'discord.js';
 import dotenv from 'dotenv';
+import cron from 'node-cron';
 
 dotenv.config();
 
@@ -26,15 +27,17 @@ for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = await import(filePath);
     client.commands.set(command.default.data.name, command.default);
-    console.log(file)
 }
 
 client.once('ready', () => {
     console.log('Bot está online!');
+    sendDailyMessage(client);
 });
 
 client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand() && !interaction.isButton()) return;
 
+    // Comando
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
 
@@ -47,5 +50,69 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply({ content: 'Houve um erro ao executar esse comando!', ephemeral: true });
         }
     }
+
+    // Botão
+    if (interaction.isButton()) {
+        if (interaction.customId === 'accept_task') {
+            try {
+                const newChannel = await interaction.guild.channels.create({
+                    name: `Current task`,
+                    type: ChannelType.GuildText,
+                    permissionOverwrites: [
+                        {
+                            id: interaction.guild.id,
+                            deny: ['ViewChannel'],
+                        },
+                        {
+                            id: interaction.user.id,
+                            allow: ['ViewChannel'],
+                        },
+                    ],
+                });
+
+                await interaction.reply({
+                    content: `Canal criado: <#${newChannel.id}>`,
+                    ephemeral: true,
+                });
+            } catch (error) {
+                console.error('Erro ao criar canal:', error);
+                await interaction.reply({
+                    content: 'Houve um erro ao criar o canal!',
+                    ephemeral: true,
+                });
+            }
+        }
+    }
 });
+
+function sendDailyMessage(client) {
+    const userId = process.env.USER_ID;
+    const channelId = process.env.CHANNEL_ID;
+
+    const messages = [
+        { time: '45 22 * * 1-5', content: `<@${userId}>! teste` },
+    ];
+
+    messages.forEach(({ time, content }) => {
+        cron.schedule(time, () => {
+            const channel = client.channels.cache.get(channelId);
+            if (channel) {
+                const button = new ButtonBuilder()
+                    .setCustomId('accept_task')
+                    .setLabel('Start task')
+                    .setStyle(ButtonStyle.Success);
+
+                const row = new ActionRowBuilder().addComponents(button);
+
+                channel.send({
+                    content: `${content}`,
+                    components: [row],
+                }).catch(console.error);
+            } else {
+                console.error(`Canal com ID ${channelId} não encontrado.`);
+            }
+        });
+    });
+}
+
 client.login(process.env.TOKEN);
