@@ -37,7 +37,7 @@ client.once('ready', () => {
 client.on('interactionCreate', async interaction => {
     if (!interaction.isCommand() && !interaction.isButton()) return;
 
-    // Comando
+
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
 
@@ -51,38 +51,12 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // Botão
     if (interaction.isButton()) {
         if (interaction.customId === 'accept_task') {
-            try {
-                const newChannel = await interaction.guild.channels.create({
-                    name: `Current task`,
-                    type: ChannelType.GuildText,
-                    permissionOverwrites: [
-                        {
-                            id: interaction.guild.id,
-                            deny: ['ViewChannel'],
-                        },
-                        {
-                            id: interaction.user.id,
-                            allow: ['ViewChannel'],
-                        },
-                    ],
-                });
-
-                await interaction.reply({
-                    content: `Canal criado: <#${newChannel.id}>`,
-                    ephemeral: true,
-                });
-            } catch (error) {
-                console.error('Erro ao criar canal:', error);
-                await interaction.reply({
-                    content: 'Houve um erro ao criar o canal!',
-                    ephemeral: true,
-                });
-            }
+            await interaction.message.delete();
         }
     }
+
 });
 
 function sendDailyMessage(client) {
@@ -90,7 +64,7 @@ function sendDailyMessage(client) {
     const channelId = process.env.CHANNEL_ID;
 
     const messages = [
-        { time: '45 22 * * 1-5', content: `<@${userId}>! teste` },
+        { time: '15 7 * * 1-5', content: `<@${userId}>! mensagem será enviada 7:15 segunda a sexta` },
     ];
 
     messages.forEach(({ time, content }) => {
@@ -99,7 +73,7 @@ function sendDailyMessage(client) {
             if (channel) {
                 const button = new ButtonBuilder()
                     .setCustomId('accept_task')
-                    .setLabel('Start task')
+                    .setLabel('End Task')
                     .setStyle(ButtonStyle.Success);
 
                 const row = new ActionRowBuilder().addComponents(button);
